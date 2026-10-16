@@ -65,7 +65,7 @@ public class GeneralController {
 
 	@PostMapping("/login")
 	public String login(@RequestParam String email, @RequestParam String password, ModelMap map, HttpSession session) {
-		return customerService.login(email, password, map, session);
+		return customerService.login(email == null ? "" : email.trim(), password, map, session);
 	}
 
 	@GetMapping("/logout")
