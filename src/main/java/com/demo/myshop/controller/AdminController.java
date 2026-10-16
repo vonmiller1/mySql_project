@@ -62,8 +62,12 @@ public class AdminController {
 	}
 
 	@GetMapping("/create-admin/{email}/{password}")
-	public String createAdmin(@PathVariable String email, @PathVariable String password,HttpSession session) {
-		return adminService.createAdmin(email,password,session);
+	public String createAdmin(@PathVariable String email, @PathVariable String password, HttpSession session) {
+		if (email == null || email.isBlank() || password == null || password.isBlank()) {
+			session.setAttribute("failMessage", "Email and password are required");
+			return "redirect:/";
+		}
+		return adminService.createAdmin(email.trim(), password, session);
 	}
 
 }
