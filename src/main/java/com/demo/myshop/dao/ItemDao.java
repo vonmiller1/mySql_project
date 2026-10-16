@@ -13,7 +13,7 @@ public class ItemDao {
 	ItemRepository itemRepository;
 
 	public Item findById(int id) {
-		return itemRepository.findById(id).orElseThrow();
+		return itemRepository.findById(id).orElse(null);
 	}
 
 	public void delete(Item item) {
