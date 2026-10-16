@@ -10,8 +10,14 @@ import jakarta.servlet.http.HttpSession;
 public class SessionMessageRemover {
 
 	public void removeMessage() {
-		HttpSession session = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest()
-				.getSession();
+		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		if (attributes == null) {
+			return;
+		}
+		HttpSession session = attributes.getRequest().getSession(false);
+		if (session == null) {
+			return;
+		}
 		session.removeAttribute("successMessage");
 		session.removeAttribute("failMessage");
 	}
