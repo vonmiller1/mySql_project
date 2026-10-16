@@ -12,4 +12,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
 	Customer findByEmail(String email);
 
+	boolean existsByRole(String role);
+
 }
