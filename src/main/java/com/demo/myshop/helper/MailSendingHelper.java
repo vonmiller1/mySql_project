@@ -1,11 +1,11 @@
 package com.demo.myshop.helper;
 
-import java.io.UnsupportedEncodingException;
-
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.demo.myshop.dto.Customer;
 
@@ -18,50 +18,38 @@ public class MailSendingHelper {
 	@Autowired
 	JavaMailSender mailSender;
 
-	public void sendOtp(Customer customer) {
-		MimeMessage message = mailSender.createMimeMessage();
-		MimeMessageHelper helper = new MimeMessageHelper(message);
+	@Value("${spring.mail.username:}")
+	private String mailFromAddress;
 
-		try {
-			helper.setFrom("saishkulkarni7@gmail.com", "s13shMyshop");
-			helper.setTo(customer.getEmail());
-			helper.setSubject("Veification OTP");
-			String gen = "";
-			if (customer.getGender().equalsIgnoreCase("male"))
-				gen = "Mr. ";
-			else
-				gen = "Ms. ";
-			String body = "<html><body><h1>Hello " + gen + customer.getName() + ",</h1><h2>You OTP is : "
-					+ customer.getOtp() + "</h2><h3>Thank and Regeards</h3></body></html>";
-			helper.setText(body,true);
-			mailSender.send(message);
-		} catch (UnsupportedEncodingException | MessagingException e) {
-			e.printStackTrace();
-		}
-		
+	public void sendOtp(Customer customer) {
+		sendOtpMessage(customer);
 	}
 
 	public void resendOtp(Customer customer) {
+		sendOtpMessage(customer);
+	}
+
+	private void sendOtpMessage(Customer customer) {
+		if (!StringUtils.hasText(mailFromAddress)) {
+			return;
+		}
 		MimeMessage message = mailSender.createMimeMessage();
 		MimeMessageHelper helper = new MimeMessageHelper(message);
 
 		try {
-			helper.setFrom("saishkulkarni7@gmail.com", "s13shMyshop");
+			helper.setFrom(mailFromAddress, "MyShop");
 			helper.setTo(customer.getEmail());
-			helper.setSubject("Veification OTP");
-			String gen = "";
-			if (customer.getGender().equalsIgnoreCase("male"))
-				gen = "Mr. ";
-			else
-				gen = "Ms. ";
-			String body = "<html><body><h1>Hello " + gen + customer.getName() + ",</h1><h2>You OTP is : "
-					+ customer.getOtp() + "</h2><h3>Thank and Regeards</h3></body></html>";
-			helper.setText(body,true);
+			helper.setSubject("Verification OTP");
+			String salutation = "male".equalsIgnoreCase(customer.getGender()) ? "Mr. " : "Ms. ";
+			String body = "<html><body><h1>Hello " + salutation + customer.getName() + ",</h1><h2>Your OTP is: "
+					+ customer.getOtp() + "</h2><p>Thank you</p></body></html>";
+			helper.setText(body, true);
 			mailSender.send(message);
-		} catch (UnsupportedEncodingException | MessagingException e) {
-			e.printStackTrace();
+		} catch (MessagingException e) {
+			throw new IllegalStateException("Failed to send OTP email", e);
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to prepare OTP email", e);
 		}
-		
 	}
 
 }
