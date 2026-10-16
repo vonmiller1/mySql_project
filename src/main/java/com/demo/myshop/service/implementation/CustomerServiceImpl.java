@@ -3,10 +3,11 @@ package com.demo.myshop.service.implementation;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+import java.security.SecureRandom;
 
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -31,6 +32,17 @@ import jakarta.servlet.http.HttpSession;
 
 @Service
 public class CustomerServiceImpl implements CustomerService {
+
+	private static final SecureRandom OTP_RANDOM = new SecureRandom();
+
+	@Value("${razorpay.key-id:}")
+	private String razorpayKeyId;
+
+	@Value("${razorpay.key-secret:}")
+	private String razorpayKeySecret;
+
+	@Value("${myshop.password-secret:123}")
+	private String passwordSecret;
 
 	@Autowired
 	CustomerDao customerDao;
@@ -57,7 +69,7 @@ public class CustomerServiceImpl implements CustomerService {
 		if (result.hasErrors())
 			return "Signup";
 		else {
-			customer.setPassword(AES.encrypt(customer.getPassword(), "123"));
+			customer.setPassword(AES.encrypt(customer.getPassword(), passwordSecret));
 			customer.setRole("USER");
 			customerDao.save(customer);
 			return "redirect:/send-otp/" + customer.getId();
@@ -67,7 +79,10 @@ public class CustomerServiceImpl implements CustomerService {
 	@Override
 	public String verifyOtp(int id, int otp, ModelMap map, HttpSession session) {
 		Customer customer = customerDao.findById(id);
-		System.out.println("*******2********");
+		if (customer == null) {
+			map.put("failMessage", "Invalid verification request");
+			return "VerifyOtp";
+		}
 		if (customer.getOtp() == otp) {
 			customer.setVerified(true);
 			customerDao.save(customer);
@@ -83,7 +98,7 @@ public class CustomerServiceImpl implements CustomerService {
 	@Override
 	public String sendOtp(int id, ModelMap map) {
 		Customer customer = customerDao.findById(id);
-		customer.setOtp(new Random().nextInt(100000, 999999));
+		customer.setOtp(OTP_RANDOM.nextInt(900_000) + 100_000);
 		customerDao.save(customer);
 		// mailHelper.sendOtp(customer);
 		map.put("id", id);
@@ -94,7 +109,7 @@ public class CustomerServiceImpl implements CustomerService {
 	@Override
 	public String resendOtp(int id, ModelMap map) {
 		Customer customer = customerDao.findById(id);
-		customer.setOtp(new Random().nextInt(100000, 999999));
+		customer.setOtp(OTP_RANDOM.nextInt(900_000) + 100_000);
 		customerDao.save(customer);
 		// mailHelper.resendOtp(customer);
 		map.put("id", id);
@@ -108,7 +123,8 @@ public class CustomerServiceImpl implements CustomerService {
 		if (customer == null)
 			session.setAttribute("failMessage", "Invalid Email");
 		else {
-			if (AES.decrypt(customer.getPassword(), "123").equals(password)) {
+			String decryptedPassword = AES.decrypt(customer.getPassword(), passwordSecret);
+			if (decryptedPassword != null && decryptedPassword.equals(password)) {
 				if (customer.isVerified()) {
 					session.setAttribute("customer", customer);
 					session.setAttribute("successMessage", "Login Success");
@@ -219,6 +235,10 @@ public class CustomerServiceImpl implements CustomerService {
 			return "redirect:/signin";
 		} else {
 			Item item = itemDao.findById(id);
+			if (item == null) {
+				session.setAttribute("failMessage", "Cart item not found");
+				return "redirect:/cart";
+			}
 			if (item.getQuantity() == 1) {
 				customer.getCart().getItems().remove(item);
 				customerDao.save(customer);
@@ -251,8 +271,13 @@ public class CustomerServiceImpl implements CustomerService {
 				return "redirect:/";
 			} else {
 				double price = items.stream().mapToDouble(x -> x.getPrice()).sum();
+				if (razorpayKeyId == null || razorpayKeyId.isBlank() || razorpayKeySecret == null
+						|| razorpayKeySecret.isBlank()) {
+					session.setAttribute("failMessage", "Payment is not configured");
+					return "redirect:/cart";
+				}
 				try {
-					RazorpayClient razorpay = new RazorpayClient("rzp_test_NL2VDewmKxugHZ", "OYO8g3i8aCPLCfn8piTOYlbi");
+					RazorpayClient razorpay = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
 
 					JSONObject orderRequest = new JSONObject();
 					orderRequest.put("amount", price * 100);
@@ -269,7 +294,7 @@ public class CustomerServiceImpl implements CustomerService {
 
 					orderDao.saveOrder(myOrder);
 
-					map.put("key", "rzp_test_NL2VDewmKxugHZ");
+					map.put("key", razorpayKeyId);
 					map.put("myOrder", myOrder);
 					map.put("customer", customer);
 
@@ -295,6 +320,9 @@ public class CustomerServiceImpl implements CustomerService {
 		} else {
 			for (Item item : customer.getCart().getItems()) {
 				Product product = productDao.findByName(item.getName());
+				if (product == null) {
+					continue;
+				}
 				product.setStock(product.getStock() - item.getQuantity());
 				productDao.save(product);
 			}
