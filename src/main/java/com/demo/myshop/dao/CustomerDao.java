@@ -24,10 +24,14 @@ public class CustomerDao {
 	}
 
 	public Customer findById(int id) {
-		return customerRepository.findById(id).orElseThrow();
+		return customerRepository.findById(id).orElse(null);
 	}
 
 	public Customer findByEmail(String email) {
 		return customerRepository.findByEmail(email);
+	}
+
+	public boolean existsByRole(String role) {
+		return customerRepository.existsByRole(role);
 	}
 }
