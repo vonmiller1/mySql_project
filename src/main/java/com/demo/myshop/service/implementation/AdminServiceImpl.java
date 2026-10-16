@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -24,6 +25,9 @@ import jakarta.validation.Valid;
 
 @Service
 public class AdminServiceImpl implements AdminService {
+
+	@Value("${myshop.password-secret:123}")
+	private String passwordSecret;
 
 	@Autowired
 	Product product;
@@ -44,7 +48,7 @@ public class AdminServiceImpl implements AdminService {
 			if (customer.getRole().equals("ADMIN"))
 				return "AdminDashBoard";
 			else {
-				session.setAttribute("failMessage", "You are Unauthorized to access his URL");
+				session.setAttribute("failMessage", "You are unauthorized to access this URL");
 				return "redirect:/";
 			}
 		}
@@ -61,7 +65,7 @@ public class AdminServiceImpl implements AdminService {
 				map.put("product", product);
 				return "AddProduct";
 			} else {
-				session.setAttribute("failMessage", "You are Unauthorized to access his URL");
+				session.setAttribute("failMessage", "You are unauthorized to access this URL");
 				return "redirect:/";
 			}
 		}
@@ -98,8 +102,8 @@ public class AdminServiceImpl implements AdminService {
 						Files.write(Paths.get("src/main/resources/static/images", product.getName() + ".jpg"),
 								picture.getBytes());
 					} catch (IOException e) {
-						session.setAttribute("failMessage", "You are Unauthorized to access his URL");
-						return "redirect:/";
+						session.setAttribute("failMessage", "Failed to save product image");
+						return "redirect:/admin/add-product";
 					}
 					session.setAttribute("successMessage", "Product Added Success");
 					return "redirect:/admin";
@@ -111,7 +115,7 @@ public class AdminServiceImpl implements AdminService {
 					// }
 				}
 			} else {
-				session.setAttribute("failMessage", "You are Unauthorized to access his URL");
+				session.setAttribute("failMessage", "You are unauthorized to access this URL");
 				return "redirect:/";
 			}
 		}
@@ -134,7 +138,7 @@ public class AdminServiceImpl implements AdminService {
 					return "ManageProducts";
 				}
 			} else {
-				session.setAttribute("failMessage", "You are Unauthorized to access his URL");
+				session.setAttribute("failMessage", "You are unauthorized to access this URL");
 				return "redirect:/";
 			}
 		}
@@ -156,7 +160,7 @@ public class AdminServiceImpl implements AdminService {
 				session.setAttribute("successMessage", "Product Deleted Success");
 				return "redirect:/admin/manage-products";
 			} else {
-				session.setAttribute("failMessage", "You are Unauthorized to access his URL");
+				session.setAttribute("failMessage", "You are unauthorized to access this URL");
 				return "redirect:/";
 			}
 		}
@@ -174,7 +178,7 @@ public class AdminServiceImpl implements AdminService {
 				map.put("product", product);
 				return "EditProduct";
 			} else {
-				session.setAttribute("failMessage", "You are Unauthorized to access his URL");
+				session.setAttribute("failMessage", "You are unauthorized to access this URL");
 				return "redirect:/";
 			}
 		}
@@ -205,14 +209,15 @@ public class AdminServiceImpl implements AdminService {
 						Files.write(Paths.get("src/main/resources/static/images", product.getName() + ".jpg"),
 								picture.getBytes());
 					} catch (IOException e) {
-						session.setAttribute("failMessage", "You are Unauthorized to access his URL");
-						return "redirect:/";
+						session.setAttribute("failMessage", "Failed to save product image");
+						map.put("product", product);
+						return "EditProduct";
 					}
 					session.setAttribute("successMessage", "Product Updated Success");
 					return "redirect:/admin";
 				}
 			} else {
-				session.setAttribute("failMessage", "You are Unauthorized to access his URL");
+				session.setAttribute("failMessage", "You are unauthorized to access this URL");
 				return "redirect:/";
 			}
 		}
@@ -220,18 +225,21 @@ public class AdminServiceImpl implements AdminService {
 
 	@Override
 	public String createAdmin(String email, String password, HttpSession session) {
-		if(!customerDao.checkEmailDuplicate(email)) {
+		if (customerDao.existsByRole("ADMIN")) {
+			session.setAttribute("failMessage", "An admin account already exists");
+			return "redirect:/";
+		}
+		if (customerDao.checkEmailDuplicate(email)) {
+			session.setAttribute("failMessage", "Admin Account Already Exists");
+			return "redirect:/";
+		}
 		Customer customer = new Customer();
 		customer.setEmail(email);
-		customer.setPassword(AES.encrypt(password, "123"));
+		customer.setPassword(AES.encrypt(password, passwordSecret));
 		customer.setRole("ADMIN");
 		customer.setVerified(true);
 		customerDao.save(customer);
 		session.setAttribute("successMessage", "Admin Account creation success");
 		return "redirect:/";
-		}else {
-			session.setAttribute("failMessage", "Admin Account Already Exists");
-			return "redirect:/";
-		}
 	}
 }
