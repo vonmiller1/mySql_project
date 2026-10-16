@@ -35,6 +35,9 @@ public class ProductDao {
 	}
 
 	public Product findByName(String name) {
+		if (name == null || name.isBlank()) {
+			return null;
+		}
 		return productRepository.findByName(name);
 	}
 
